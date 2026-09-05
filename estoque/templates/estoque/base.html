@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TATUS - {% block titulo %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .wrapper {
+            display: flex;
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .sidebar {
+            min-width: 250px;
+            max-width: 250px;
+            background: #2c3e50;
+            color: #fff;
+            transition: all 0.3s;
+            min-height: 100vh;
+            padding: 0;
+        }
+        .sidebar .logo-area {
+            padding: 20px 15px;
+            border-bottom: 1px solid #3d5166;
+            text-align: center;
+        }
+        .sidebar .logo-area h2 {
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #fff;
+            margin: 0;
+        }
+        .sidebar .logo-area .sub {
+            font-size: 0.7rem;
+            color: #aab8c7;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .sidebar .nav-link {
+            color: #cfd8e6;
+            padding: 12px 20px;
+            border-radius: 0;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar .nav-link:hover {
+            background: #1a2a3a;
+            color: #fff;
+            border-left-color: #3498db;
+        }
+        .sidebar .nav-link.active {
+            background: #1a2a3a;
+            color: #fff;
+            border-left-color: #3498db;
+        }
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            width: 100%;
+            padding: 20px 30px;
+        }
+        .content .header-bar {
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content .header-bar h4 {
+            margin: 0;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .content .header-bar .user-info {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        .card-custom {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .table-custom th {
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .btn-primary-custom {
+            background: #3498db;
+            border: none;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 6px;
+            transition: 0.2s;
+        }
+        .btn-primary-custom:hover {
+            background: #2980b9;
+            color: #fff;
+        }
+        .badge-entrada {
+            background: #27ae60;
+            color: #fff;
+        }
+        .badge-saida {
+            background: #e67e22;
+            color: #fff;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                min-width: 80px;
+                max-width: 80px;
+                text-align: center;
+            }
+            .sidebar .logo-area h2 { font-size: 1.2rem; }
+            .sidebar .logo-area .sub { display: none; }
+            .sidebar .nav-link span { display: none; }
+            .sidebar .nav-link i { margin-right: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+
+        <nav class="sidebar">
+    <div class="logo-area">
+    <img src="/static/estoque/logo.png" alt="Logo TATUS" style="height: 50px; display: block; margin: 0 auto 5px;">
+    <h2 style="margin: 0;">TATUS</h2>
+    <div class="sub">LOGISTICA</div>
+        </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/fornecedores/' in request.path %}active{% endif %}" href="/fornecedores/">
+                        <i class="bi bi-building"></i> <span>Fornecedores</span>
+                    </a>
+                </li>
+                    <li class="nav-item">
+                    <a class="nav-link {% if '/clientes/' in request.path %}active{% endif %}" href="/clientes/">
+                    <i class="bi bi-people"></i> <span>Clientes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/produtos/' in request.path %}active{% endif %}" href="/produtos/">
+                        <i class="bi bi-box"></i> <span>Produtos</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/notas/' in request.path %}active{% endif %}" href="/notas/">
+                        <i class="bi bi-receipt"></i> <span>Notas Fiscais</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin">
+                        <i class="bi bi-gear"></i> <span>Admin</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+  
+        <div class="content">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="header-bar">
+        <h4>{% block titulo_pagina %}{% endblock %}</h4>
+        <div class="user-info">
+        <i class="bi bi-person-circle"></i> {{ request.user.username }}
+        <span id="timer" class="ms-3 fw-bold" style="min-width: 90px; display: inline-block;">
+                <i class="bi bi-clock"></i> <span id="tempo-restante">59:59</span>
+            </span>
+                <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger ms-3" style="border-radius: 20px;">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </a>
+        </div>
+    </div>
+
+    {% block conteudo %}
+    {% endblock %}
+        </div>
+    </div>
+
+<script>
+    // Tempo total em segundos (1 hora = 3600)
+    const TOTAL = 3600;
+
+    // Pega o horário de início salvo no navegador, ou cria um novo
+    let inicio = localStorage.getItem('inicioTimer');
+    if (!inicio) {
+        inicio = Date.now();
+        localStorage.setItem('inicioTimer', inicio);
+    }
+    inicio = parseInt(inicio);
+
+    const elemento = document.getElementById('tempo-restante');
+
+    function atualizar() {
+        const passou = Math.floor((Date.now() - inicio) / 1000);
+        let restante = TOTAL - passou;
+        if (restante < 0) restante = 0;
+
+        const min = String(Math.floor(restante / 60)).padStart(2, '0');
+        const seg = String(restante % 60).padStart(2, '0');
+        elemento.textContent = min + ':' + seg;
+
+        // Cor do timer
+        const timerSpan = document.getElementById('timer');
+        if (restante > 600) timerSpan.style.color = '#28a745';      // verde
+        else if (restante > 300) timerSpan.style.color = '#ffc107'; // amarelo
+        else timerSpan.style.color = '#dc3545';                     // vermelho
+
+        // Se acabou, vai para o login
+        if (restante <= 0) {
+            clearInterval(intervalo);
+            localStorage.removeItem('inicioTimer');
+            window.location.href = '/login/';
+        }
+    }
+
+    const intervalo = setInterval(atualizar, 1000);
+    atualizar();
+</script>
+</body>
+</html>

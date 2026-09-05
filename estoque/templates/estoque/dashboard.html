@@ -1,0 +1,62 @@
+{% extends 'estoque/base.html' %}
+
+{% block titulo %}Dashboard{% endblock %}
+{% block titulo_pagina %}📊 Painel de Controle{% endblock %}
+
+{% block conteudo %}
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Fornecedores</h5>
+                    <h2>{{ total_fornecedores }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Produtos</h5>
+                    <h2>{{ total_produtos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Notas Fiscais</h5>
+                    <h2>{{ total_notas }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card-custom">
+                <h6>🆕 Últimos Produtos</h6>
+                <ul class="list-group list-group-flush">
+                    {% for produto in ultimos_produtos %}
+                        <li class="list-group-item">{{ produto.nome }} - Estoque: {{ produto.quantidade_estoque }}</li>
+                    {% empty %}
+                        <li class="list-group-item">Nenhum produto cadastrado.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card-custom">
+                <h6>⚠️ Produtos com pouco estoque (&lt; 10)</h6>
+                <ul class="list-group list-group-flush">
+                    {% for produto in produtos_baixo_estoque %}
+                        <li class="list-group-item">{{ produto.nome }} - {{ produto.quantidade_estoque }} un.</li>
+                    {% empty %}
+                        <li class="list-group-item">Nenhum produto com estoque baixo.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+{% endblock %}
