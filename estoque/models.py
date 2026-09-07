@@ -9,6 +9,7 @@ class Fornecedor(models.Model):
     rua = models.CharField(max_length=200, blank=True, null=True)
     numero = models.CharField(max_length=10, blank=True, null=True)
     bairro = models.CharField(max_length=100, blank=True, null=True)
+    ativo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nome
@@ -54,13 +55,12 @@ class Cliente(models.Model):
     nome = models.CharField(max_length=100)
     cpf_cnpj = models.CharField(max_length=18, unique=True, blank=True, null=True)
     telefone = models.CharField(max_length=15, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    
-    # Endereço (igual ao Fornecedor)
+    email = models.EmailField(blank=True, null=True)    
     cep = models.CharField(max_length=9, blank=True, null=True)
     rua = models.CharField(max_length=200, blank=True, null=True)
     numero = models.CharField(max_length=10, blank=True, null=True)
     bairro = models.CharField(max_length=100, blank=True, null=True)
+    ativo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nome

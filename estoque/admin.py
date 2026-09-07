@@ -11,6 +11,10 @@ class NotaFiscalAdmin(admin.ModelAdmin):
     inlines = [ItemNotaInline]
     list_display = ('numero', 'data_emissao', 'tipo', 'fornecedor')
     list_filter = ('tipo',)
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "fornecedor":
+            kwargs["queryset"] = Fornecedor.objects.filter(ativo=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class FornecedorAdmin(admin.ModelAdmin):

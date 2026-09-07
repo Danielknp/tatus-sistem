@@ -12,36 +12,57 @@
 </div>
 
 <div class="card-custom">
-    <table class="table table-striped table-custom">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>CPF/CNPJ</th>
-                <th>Telefone</th>
-                <th>Email</th>
-                <th class="text-center">Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in clientes %}
-            <tr>
-                <td><a href="{% url 'detalhe_cliente' c.id %}" class="text-decoration-none fw-semibold" style="color: #2c3e50;">{{ c.nome }}</a></td>
-                <td>{{ c.cpf_cnpj|default:"-" }}</td>
-                <td>{{ c.telefone|default:"-" }}</td>
-                <td>{{ c.email|default:"-" }}</td>
-                <td class="text-center">
-                    <a href="{% url 'cliente_editar' c.id %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">
-                        <i class="bi bi-pencil"></i>
-                    </a>
-                    <a href="{% url 'cliente_excluir' c.id %}" class="btn btn-sm btn-outline-danger" title="Excluir">
-                        <i class="bi bi-trash3"></i>
-                    </a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="text-center">Nenhum cliente cadastrado.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-striped table-custom">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>CPF/CNPJ</th>
+                    <th>Telefone</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clientes %}
+                <tr>
+                    <td><a href="{% url 'detalhe_cliente' c.id %}" class="text-decoration-none fw-semibold" style="color: #2c3e50;">{{ c.nome }}</a></td>
+                    <td>{{ c.cpf_cnpj|default:"-" }}</td>
+                    <td>{{ c.telefone|default:"-" }}</td>
+                    <td>{{ c.email|default:"-" }}</td>
+                    <td>
+                        {% if c.ativo %}
+                            <span class="badge bg-success">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-danger">Bloqueado</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <a href="{% url 'cliente_editar' c.id %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% if c.ativo %}
+                            <a href="{% url 'cliente_bloquear' c.id %}" class="btn btn-sm btn-outline-warning me-1" title="Bloquear">
+                                <i class="bi bi-lock"></i>
+                            </a>
+                        {% else %}
+                            <a href="{% url 'cliente_desbloquear' c.id %}" class="btn btn-sm btn-outline-success me-1" title="Desbloquear">
+                                <i class="bi bi-unlock"></i>
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'cliente_excluir' c.id %}" class="btn btn-sm btn-outline-danger" title="Excluir">
+                            <i class="bi bi-trash3"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">Nenhum cliente cadastrado.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

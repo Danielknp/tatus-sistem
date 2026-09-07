@@ -31,7 +31,7 @@ def registro_view(request):
         password1 = request.POST.get('password1')
         password2 = request.POST.get('password2')
 
-        # Validações simples
+
         if password1 != password2:
             messages.error(request, 'As senhas não coincidem.')
             return render(request, 'estoque/registro.html')
@@ -44,14 +44,13 @@ def registro_view(request):
             messages.error(request, 'Este nome de usuário já existe.')
             return render(request, 'estoque/registro.html')
 
-        # Criar o usuário
         user = User.objects.create_user(username=username, password=password1)
         login(request, user)  
         return redirect('dashboard')
 
     return render(request, 'estoque/registro.html')
 
-# Função de Logout
+
 def logout_view(request):
     logout(request)
     return redirect('login')
@@ -122,7 +121,7 @@ def em_breve(request):
 def lista_clientes(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    clientes = Cliente.objects.all()
+    clientes = Cliente.objects.all() 
     return render(request, 'estoque/clientes.html', {'clientes': clientes})
 
 def detalhe_cliente(request, id):
@@ -163,14 +162,20 @@ def fornecedor_editar(request, id):
         form = FornecedorForm(instance=fornecedor)
     return render(request, 'estoque/fornecedor_form.html', {'form': form, 'titulo': 'Editar Fornecedor'})
 
+from django.db.models import ProtectedError
+
 def fornecedor_excluir(request, id):
     if not request.user.is_authenticated:
         return redirect('login')
     fornecedor = get_object_or_404(Fornecedor, id=id)
     if request.method == 'POST':
-        fornecedor.delete()
-        messages.success(request, 'Fornecedor excluído com sucesso!')
-        return redirect('fornecedores')
+        try:
+            fornecedor.delete()
+            messages.success(request, 'Fornecedor excluído com sucesso!')
+            return redirect('fornecedores')
+        except ProtectedError:
+            messages.error(request, 'Este fornecedor não pode ser excluído porque está vinculado a produtos ou notas fiscais. Remova os vínculos antes de excluir.')
+            return redirect('fornecedores')
     return render(request, 'estoque/confirmar_exclusao.html', {'objeto': fornecedor, 'tipo': 'Fornecedor'})
 
 def cliente_novo(request):
@@ -219,3 +224,63 @@ def admin_redirect(request):
     else:
         messages.error(request, 'Acesso negado. Você não possui permissão para acessar este recurso. Por favor, solicite liberação ao administrador.')
         return redirect('dashboard')
+
+def fornecedor_bloquear(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    fornecedor = get_object_or_404(Fornecedor, id=id)
+    if request.method == 'POST':
+        fornecedor.ativo = False
+        fornecedor.save()
+        messages.success(request, f'Fornecedor {fornecedor.nome} bloqueado com sucesso!')
+        return redirect('fornecedores')
+    return render(request, 'estoque/confirmar_bloqueio.html', {
+        'objeto': fornecedor,
+        'tipo': 'Fornecedor',
+        'acao': 'bloquear'
+    })
+
+def fornecedor_desbloquear(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    fornecedor = get_object_or_404(Fornecedor, id=id)
+    if request.method == 'POST':
+        fornecedor.ativo = True
+        fornecedor.save()
+        messages.success(request, f'Fornecedor {fornecedor.nome} desbloqueado com sucesso!')
+        return redirect('fornecedores')
+    return render(request, 'estoque/confirmar_bloqueio.html', {
+        'objeto': fornecedor,
+        'tipo': 'Fornecedor',
+        'acao': 'desbloquear'
+    })
+
+def cliente_bloquear(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    cliente = get_object_or_404(Cliente, id=id)
+    if request.method == 'POST':
+        cliente.ativo = False
+        cliente.save()
+        messages.success(request, f'Cliente {cliente.nome} bloqueado com sucesso!')
+        return redirect('clientes')
+    return render(request, 'estoque/confirmar_bloqueio.html', {
+        'objeto': cliente,
+        'tipo': 'Cliente',
+        'acao': 'bloquear'
+    })
+
+def cliente_desbloquear(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    cliente = get_object_or_404(Cliente, id=id)
+    if request.method == 'POST':
+        cliente.ativo = True
+        cliente.save()
+        messages.success(request, f'Cliente {cliente.nome} desbloqueado com sucesso!')
+        return redirect('clientes')
+    return render(request, 'estoque/confirmar_bloqueio.html', {
+        'objeto': cliente,
+        'tipo': 'Cliente',
+        'acao': 'desbloquear'
+    })

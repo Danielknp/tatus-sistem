@@ -23,4 +23,8 @@ urlpatterns = [
     path('em-breve/', views.em_breve, name='em_breve'),
     path('admin/', views.admin_redirect, name='admin_redirect'),
     path('admin-secreto/', admin.site.urls),
+    path('fornecedores/bloquear/<int:id>/', views.fornecedor_bloquear, name='fornecedor_bloquear'),
+    path('fornecedores/desbloquear/<int:id>/', views.fornecedor_desbloquear, name='fornecedor_desbloquear'),
+    path('clientes/bloquear/<int:id>/', views.cliente_bloquear, name='cliente_bloquear'),
+    path('clientes/desbloquear/<int:id>/', views.cliente_desbloquear, name='cliente_desbloquear'),
 ]
