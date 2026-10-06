@@ -1,0 +1,45 @@
+{% extends 'estoque/base.html' %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+{% block titulo_pagina %}🔧 Ajuste de Inventário{% endblock %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card-custom">
+
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Você está ajustando o estoque de <strong>{{ produto.nome }}</strong> (código {{ produto.codigo }}).
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Estoque atual do sistema</label>
+                <div class="form-control bg-light" style="pointer-events: none;">
+                    {{ produto.quantidade_estoque }} unidades
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="d-flex justify-content-end mt-3">
+                    <a href="{% url 'detalhe_produto' produto.id %}" class="btn btn-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i> Salvar Ajuste
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

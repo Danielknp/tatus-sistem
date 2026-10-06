@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from .models import Fornecedor, Produto, NotaFiscal, ItemNota, Cliente
-from .forms import FornecedorForm, ClienteForm
+from .forms import FornecedorForm, ClienteForm, ProdutoForm, InventarioForm
 
 
 def login_view(request):
@@ -78,14 +78,24 @@ def dashboard(request):
 def lista_fornecedores(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    fornecedores = Fornecedor.objects.all()
-    return render(request, 'estoque/fornecedores.html', {'fornecedores': fornecedores})
+    q = request.GET.get('q', '').strip()
+    fornecedores = Fornecedor.objects.all().order_by('-id')
+    if q:
+        fornecedores = fornecedores.filter(
+            Q(nome__icontains=q) | Q(cnpj__icontains=q) | Q(email__icontains=q)
+        )
+    return render(request, 'estoque/fornecedores.html', {'fornecedores': fornecedores, 'q': q})
 
 def lista_produtos(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    produtos = Produto.objects.all()
-    return render(request, 'estoque/produtos.html', {'produtos': produtos})
+    q = request.GET.get('q', '').strip()
+    produtos = Produto.objects.all().order_by('-id')
+    if q:
+        produtos = produtos.filter(
+            Q(nome__icontains=q) | Q(codigo__icontains=q) | Q(fornecedor__nome__icontains=q)
+        )
+    return render(request, 'estoque/produtos.html', {'produtos': produtos, 'q': q})
 
 def lista_notas(request):
     if not request.user.is_authenticated:
@@ -121,8 +131,13 @@ def em_breve(request):
 def lista_clientes(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    clientes = Cliente.objects.all() 
-    return render(request, 'estoque/clientes.html', {'clientes': clientes})
+    q = request.GET.get('q', '').strip()
+    clientes = Cliente.objects.all().order_by('-id')
+    if q:
+        clientes = clientes.filter(
+            Q(nome__icontains=q) | Q(cpf_cnpj__icontains=q) | Q(email__icontains=q)
+        )
+    return render(request, 'estoque/clientes.html', {'clientes': clientes, 'q': q})
 
 def detalhe_cliente(request, id):
     if not request.user.is_authenticated:
@@ -162,7 +177,7 @@ def fornecedor_editar(request, id):
         form = FornecedorForm(instance=fornecedor)
     return render(request, 'estoque/fornecedor_form.html', {'form': form, 'titulo': 'Editar Fornecedor'})
 
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 
 def fornecedor_excluir(request, id):
     if not request.user.is_authenticated:
@@ -283,4 +298,86 @@ def cliente_desbloquear(request, id):
         'objeto': cliente,
         'tipo': 'Cliente',
         'acao': 'desbloquear'
+    })
+
+def produto_novo(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Produto cadastrado com sucesso!')
+            return redirect('produtos')
+    else:
+        form = ProdutoForm()
+    return render(request, 'estoque/produto_form.html', {'form': form, 'titulo': 'Novo Produto'})
+
+
+def produto_editar(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    produto = get_object_or_404(Produto, id=id)
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST, instance=produto)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Produto atualizado com sucesso!')
+            return redirect('produtos')
+    else:
+        form = ProdutoForm(instance=produto)
+        # Se o fornecedor do produto estiver bloqueado, ainda mostra ele no menu (senão perdemos o vínculo)
+        if produto.fornecedor:
+            form.fields['fornecedor'].queryset = Fornecedor.objects.filter(
+                Q(ativo=True) | Q(id=produto.fornecedor.id)
+            )
+    return render(request, 'estoque/produto_form.html', {'form': form, 'titulo': 'Editar Produto'})
+
+
+def produto_excluir(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    produto = get_object_or_404(Produto, id=id)
+    if request.method == 'POST':
+        try:
+            produto.delete()
+            messages.success(request, 'Produto excluído com sucesso!')
+        except ProtectedError:
+            messages.error(request, 'Este produto não pode ser excluído porque está vinculado a uma nota fiscal. Remova o vínculo antes de excluir.')
+        return redirect('produtos')
+    return render(request, 'estoque/confirmar_exclusao.html', {'objeto': produto, 'tipo': 'Produto'})
+
+
+def detalhe_produto(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    produto = get_object_or_404(Produto, id=id)
+    itens = ItemNota.objects.filter(produto=produto).order_by('-nota__data_emissao')
+    context = {
+        'produto': produto,
+        'itens': itens,
+    }
+    return render(request, 'estoque/produto_detalhe.html', context)
+
+def produto_inventario(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    produto = get_object_or_404(Produto, id=id)
+    if request.method == 'POST':
+        form = InventarioForm(request.POST)
+        if form.is_valid():
+            quantidade_anterior = produto.quantidade_estoque
+            produto.quantidade_estoque = form.cleaned_data['quantidade_estoque']
+            produto.save()
+            messages.success(
+                request,
+                f'Estoque de "{produto.nome}" ajustado de {quantidade_anterior} para {produto.quantidade_estoque} unidades.'
+            )
+            return redirect('detalhe_produto', id=produto.id)
+    else:
+        form = InventarioForm(initial={'quantidade_estoque': produto.quantidade_estoque})
+    return render(request, 'estoque/produto_inventario.html', {
+        'form': form,
+        'produto': produto,
+        'titulo': f'Ajuste de Inventário — {produto.nome}'
     })
