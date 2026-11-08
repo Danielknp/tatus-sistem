@@ -142,24 +142,68 @@ class NotaEntradaForm(forms.ModelForm):
 
 
 class ItemEntradaForm(forms.ModelForm):
+    # Novo campo de texto para o código
+    codigo_produto = forms.CharField(
+        label='Código do Produto',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Digite o código exato (ex: 0000007)'})
+    )
+
     class Meta:
         model = ItemNota
-        fields = ['produto', 'quantidade', 'preco_unitario']
+        fields = ['quantidade', 'preco_unitario'] # Tiramos o 'produto' daqui
         widgets = {
-            'produto': forms.Select(attrs={'class': 'form-control'}),
             'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
         labels = {
-            'produto': 'Produto',
             'quantidade': 'Quantidade',
             'preco_unitario': 'Preço Unitário (R$)',
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['produto'].queryset = Produto.objects.all().order_by('nome')
-        self.fields['produto'].empty_label = "Selecione o produto"
+    def clean(self):
+        cleaned_data = super().clean()
+        codigo = cleaned_data.get('codigo_produto')
+        
+        # Se o usuário digitou o código, o sistema busca o produto
+        if codigo:
+            try:
+                # Procura o produto no banco de dados
+                produto = Produto.objects.get(codigo=codigo)
+                self.instance.produto = produto
+            except Produto.DoesNotExist:
+                self.add_error('codigo_produto', 'Nenhum produto encontrado com este código.')
+        return cleaned_data
+
+
+class ItemSaidaForm(forms.ModelForm):
+    codigo_produto = forms.CharField(
+        label='Código do Produto',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Digite o código exato (ex: 0000007)'})
+    )
+
+    class Meta:
+        model = ItemNota
+        fields = ['quantidade', 'preco_unitario'] 
+        widgets = {
+            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+        labels = {
+            'quantidade': 'Quantidade',
+            'preco_unitario': 'Preço de Venda Unitário (R$)',
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        codigo = cleaned_data.get('codigo_produto')
+        
+        if codigo:
+            try:
+                produto = Produto.objects.get(codigo=codigo)
+                self.instance.produto = produto
+            except Produto.DoesNotExist:
+                self.add_error('codigo_produto', 'Nenhum produto encontrado com este código.')
+        return cleaned_data
 
 class NotaSaidaForm(forms.ModelForm):
     class Meta:
@@ -178,24 +222,3 @@ class NotaSaidaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['cliente'].queryset = Cliente.objects.filter(ativo=True)
         self.fields['cliente'].empty_label = "Selecione o cliente"
-
-
-class ItemSaidaForm(forms.ModelForm):
-    class Meta:
-        model = ItemNota
-        fields = ['produto', 'quantidade', 'preco_unitario']
-        widgets = {
-            'produto': forms.Select(attrs={'class': 'form-control'}),
-            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
-            'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-        }
-        labels = {
-            'produto': 'Produto',
-            'quantidade': 'Quantidade',
-            'preco_unitario': 'Preço de Venda Unitário (R$)',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['produto'].queryset = Produto.objects.all().order_by('nome')
-        self.fields['produto'].empty_label = "Selecione o produto"

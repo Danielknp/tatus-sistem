@@ -497,7 +497,7 @@ def nota_saida_nova(request):
             
             nota.save()
             messages.success(request, f'Nota de Saída nº {nota.numero} iniciada! Agora adicione os produtos.')
-            return redirect('nota_saida_detalhe', id=nota.id)
+            return redirect('nota_saida_adicionar_item', id=nota.id)
     else:
         form = NotaSaidaForm()
     return render(request, 'estoque/nota_saida_form.html', {'form': form, 'titulo': 'Nova Nota de Saída'})
@@ -509,7 +509,7 @@ def nota_saida_detalhe(request, id):
     nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
     itens = nota.itens.all()
     
-    # Agora a tela só mostra os dados. Não tem mais POST para adicionar item aqui.
+    # Apenas mostra os dados
     return render(request, 'estoque/nota_saida_detalhe.html', {
         'nota': nota,
         'itens': itens
@@ -550,3 +550,36 @@ def nota_saida_excluir(request, id):
         return redirect('notas_saida')
         
     return render(request, 'estoque/confirmar_exclusao.html', {'objeto': nota, 'tipo': 'Nota de Saída'})
+
+def nota_saida_adicionar_item(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
+    
+    if request.method == 'POST':
+        item_form = ItemSaidaForm(request.POST)
+        if item_form.is_valid():
+            item = item_form.save(commit=False)
+            item.nota = nota
+            produto = item.produto
+            
+            if item.quantidade > produto.quantidade_estoque:
+                messages.error(request, f'Estoque insuficiente! O produto "{produto.nome}" só tem {produto.quantidade_estoque} un.')
+                return redirect('nota_saida_adicionar_item', id=nota.id)
+            
+            item.save()
+            produto.quantidade_estoque -= item.quantidade
+            produto.save()
+            
+            messages.success(request, f'Produto "{produto.nome}" adicionado! Estoque atualizado.')
+            return redirect('nota_saida_adicionar_item', id=nota.id)
+    else:
+        item_form = ItemSaidaForm()
+        
+    itens = nota.itens.all()
+    return render(request, 'estoque/nota_saida_adicionar_item.html', {
+        'nota': nota,
+        'itens': itens,
+        'item_form': item_form
+    })

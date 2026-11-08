@@ -32,6 +32,7 @@ urlpatterns = [
     path('notas/saida/', views.lista_notas_saida, name='notas_saida'),
     path('notas/saida/nova/', views.nota_saida_nova, name='nota_saida_nova'),
     path('notas/saida/<int:id>/', views.nota_saida_detalhe, name='nota_saida_detalhe'),
+    path('notas/saida/<int:id>/adicionar-item/', views.nota_saida_adicionar_item, name='nota_saida_adicionar_item'),
     path('notas/imprimir/', views.imprimir_nota, name='imprimir_nota'),
     path('notas/entrada/<int:id>/', views.nota_entrada_detalhe, name='nota_entrada_detalhe'),
     path('notas/saida/<int:id>/excluir/', views.nota_saida_excluir, name='nota_saida_excluir'),
