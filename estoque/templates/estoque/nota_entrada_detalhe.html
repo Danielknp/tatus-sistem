@@ -1,0 +1,98 @@
+{% extends 'estoque/base.html' %}
+
+{% block titulo %}Nota de Entrada - {{ nota.numero }}{% endblock %}
+{% block titulo_pagina %}📥 Nota de Entrada: {{ nota.numero }}{% endblock %}
+
+{% block conteudo %}
+
+<!-- Cabeçalho da Nota -->
+<div class="card-custom mb-4">
+    <div class="row">
+        <div class="col-md-4">
+            <strong>Número:</strong> {{ nota.numero }}<br>
+            <strong>Data:</strong> {{ nota.data_emissao|date:"d/m/Y H:i" }}
+        </div>
+        <div class="col-md-4">
+            <strong>Fornecedor:</strong> {{ nota.fornecedor.nome }}<br>
+            <strong>CNPJ:</strong> {{ nota.fornecedor.cnpj }}
+        </div>
+        <div class="col-md-4">
+            <strong>Observação:</strong><br>
+            <small class="text-muted">{{ nota.observacao|default:"Nenhuma observação." }}</small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Lado Esquerdo: Adicionar Item -->
+    <div class="col-md-4">
+        <div class="card-custom">
+            <h6><i class="bi bi-plus-circle"></i> Adicionar Produto</h6>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                {% for field in item_form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="text-danger small mt-1">{{ field.errors|striptags }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-box-arrow-in-down"></i> Adicionar e Somar no Estoque
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lado Direito: Lista de Itens -->
+    <div class="col-md-8">
+        <div class="card-custom">
+            <h6><i class="bi bi-list-ul"></i> Produtos desta Nota</h6>
+            <hr>
+            <div class="table-responsive">
+                <table class="table table-striped table-custom">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th class="text-center">Qtd</th>
+                            <th>Preço Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr>
+                            <td>{{ item.produto.nome }}</td>
+                            <td class="text-center">{{ item.quantidade }}</td>
+                            <td>R$ {{ item.preco_unitario }}</td>
+                            <td>R$ {% widthratio item.quantidade 1 item.preco_unitario %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Nenhum produto adicionado ainda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if itens %}
+                    <tfoot>
+                        <tr>
+                            <th colspan="3" class="text-end">TOTAL DA NOTA:</th>
+                            <th class="text-success">R$ {{ nota.total }}</th>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-end mt-3">
+                <a href="{% url 'notas' %}" class="btn btn-secondary">
+                    <i class="bi bi-check-circle"></i> Finalizar e Voltar
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

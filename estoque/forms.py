@@ -1,5 +1,5 @@
 from django import forms
-from .models import Fornecedor, Cliente, Produto
+from .models import Fornecedor, Cliente, Produto, NotaFiscal, ItemNota
 
 class FornecedorForm(forms.ModelForm):
     class Meta:
@@ -100,3 +100,102 @@ class InventarioForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         label='Motivo do Ajuste (opcional)'
     )
+
+class NotaEntradaForm(forms.ModelForm):
+    numero = forms.CharField(
+        max_length=9,
+        min_length=9,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ex: 000123456',
+            'maxlength': '9',
+            'oninput': "this.value = this.value.replace(/[^0-9]/g, '')"
+        }),
+        label='Número da Nota (9 dígitos)',
+        help_text='Digite os 9 números da nota emitida pelo fornecedor.'
+    )
+
+    class Meta:
+        model = NotaFiscal
+        fields = ['numero', 'fornecedor', 'observacao']
+        widgets = {
+            'fornecedor': forms.Select(attrs={'class': 'form-control'}),
+            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Alguma observação sobre esta nota? (Opcional)'}),
+        }
+        labels = {
+            'fornecedor': 'Fornecedor (de onde veio a mercadoria)',
+            'observacao': 'Observação',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['fornecedor'].queryset = Fornecedor.objects.filter(ativo=True)
+        self.fields['fornecedor'].empty_label = "Selecione o fornecedor"
+
+    def clean_numero(self):
+        numero = self.cleaned_data.get('numero')
+        if not numero.isdigit():
+            raise forms.ValidationError("O número deve conter apenas dígitos numéricos.")
+        if NotaFiscal.objects.filter(numero=numero).exists():
+            raise forms.ValidationError("Já existe uma nota cadastrada com este número.")
+        return numero
+
+
+class ItemEntradaForm(forms.ModelForm):
+    class Meta:
+        model = ItemNota
+        fields = ['produto', 'quantidade', 'preco_unitario']
+        widgets = {
+            'produto': forms.Select(attrs={'class': 'form-control'}),
+            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+        labels = {
+            'produto': 'Produto',
+            'quantidade': 'Quantidade',
+            'preco_unitario': 'Preço Unitário (R$)',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['produto'].queryset = Produto.objects.all().order_by('nome')
+        self.fields['produto'].empty_label = "Selecione o produto"
+
+class NotaSaidaForm(forms.ModelForm):
+    class Meta:
+        model = NotaFiscal
+        fields = ['cliente', 'observacao']
+        widgets = {
+            'cliente': forms.Select(attrs={'class': 'form-control'}),
+            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Alguma observação sobre esta venda? (Opcional)'}),
+        }
+        labels = {
+            'cliente': 'Cliente (para quem está saindo)',
+            'observacao': 'Observação',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cliente'].queryset = Cliente.objects.filter(ativo=True)
+        self.fields['cliente'].empty_label = "Selecione o cliente"
+
+
+class ItemSaidaForm(forms.ModelForm):
+    class Meta:
+        model = ItemNota
+        fields = ['produto', 'quantidade', 'preco_unitario']
+        widgets = {
+            'produto': forms.Select(attrs={'class': 'form-control'}),
+            'quantidade': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        }
+        labels = {
+            'produto': 'Produto',
+            'quantidade': 'Quantidade',
+            'preco_unitario': 'Preço de Venda Unitário (R$)',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['produto'].queryset = Produto.objects.all().order_by('nome')
+        self.fields['produto'].empty_label = "Selecione o produto"

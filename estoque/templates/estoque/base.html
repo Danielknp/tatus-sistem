@@ -165,8 +165,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if '/notas/' in request.path %}active{% endif %}" href="/notas/">
-                        <i class="bi bi-receipt"></i> <span>Notas Fiscais</span>
+                    <a class="nav-link {% if '/notas/entrada/' in request.path %}active{% endif %}" href="/notas/">
+                        <i class="bi bi-box-arrow-in-down"></i> <span>Documento de Entrada</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if '/notas/saida/' in request.path %}active{% endif %}" href="{% url 'notas_saida' %}">
+                        <i class="bi bi-box-arrow-up"></i> <span>Documento de Saída</span>
                     </a>
                 </li>
                 <li class="nav-item">

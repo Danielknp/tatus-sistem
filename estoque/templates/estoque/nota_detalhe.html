@@ -1,0 +1,89 @@
+{% extends 'estoque/base.html' %}
+
+{% block titulo %}Detalhes da Nota{% endblock %}
+{% block titulo_pagina %}📄 Detalhes da Nota Fiscal{% endblock %}
+
+{% block conteudo %}
+<div class="row">
+    <!-- Coluna da Esquerda: Dados da Nota -->
+    <div class="col-md-4">
+        <div class="card-custom">
+            <h6><i class="bi bi-info-circle"></i> Informações da Nota</h6>
+            <hr>
+            <p><strong>Número:</strong> {{ nota.numero }}</p>
+            <p><strong>Data de Emissão:</strong> {{ nota.data_emissao|date:"d/m/Y H:i" }}</p>
+            <p><strong>Tipo:</strong> 
+                {% if nota.tipo == 'E' %}
+                    <span class="badge badge-entrada">Entrada</span>
+                {% else %}
+                    <span class="badge badge-saida">Saída</span>
+                {% endif %}
+            </p>
+
+{% if nota.fornecedor %}
+    <div class="mt-4 p-3 bg-light rounded border">
+        <h6 class="fw-bold mb-3"><i class="bi bi-building"></i> Dados do Fornecedor</h6>
+        <p class="mb-1"><strong>Nome:</strong> {{ nota.fornecedor.nome }}</p>
+        <p class="mb-1"><strong>CNPJ:</strong> {{ nota.fornecedor.cnpj }}</p>
+        <p class="mb-1"><strong>Telefone:</strong> {{ nota.fornecedor.telefone|default:"-" }}</p>
+        <p class="mb-1"><strong>Email:</strong> {{ nota.fornecedor.email|default:"-" }}</p>
+        <p class="mb-1"><strong>Endereço:</strong> {{ nota.fornecedor.rua|default:"-" }}, {{ nota.fornecedor.numero|default:"-" }} - {{ nota.fornecedor.bairro|default:"-" }}</p>
+        <p class="mb-0"><strong>CEP:</strong> {{ nota.fornecedor.cep|default:"-" }}</p>
+    </div>
+{% else %}
+    <p><strong>Fornecedor/Cliente:</strong> Não informado (Venda direta)</p>
+{% endif %}
+            
+            {% if nota.observacao %}
+                <p><strong>Observação:</strong><br> {{ nota.observacao }}</p>
+            {% endif %}
+        </div>
+        
+        <a href="{% url 'notas' %}" class="btn btn-secondary mt-2">
+            <i class="bi bi-arrow-left"></i> Voltar para Notas
+        </a>
+    </div>
+
+    <!-- Coluna da Direita: Materiais da Nota -->
+    <div class="col-md-8">
+        <div class="card-custom">
+            <h6><i class="bi bi-box-seam"></i> Materiais / Itens da Nota</h6>
+            <hr>
+            
+            {% if itens %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-custom">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Qtd.</th>
+                                <th>Preço Unitário</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens %}
+                            <tr>
+                                <td>{{ item.produto.nome }}</td>
+                                <td>{{ item.quantidade }}</td>
+                                <td>R$ {{ item.preco_unitario }}</td>
+                                <!-- Aqui multiplicamos quantidade x preço no próprio template -->
+                                <td>R$ {% widthratio item.preco_unitario 1 item.quantidade %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total Geral:</th>
+                                <th>R$ {{ total_geral }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">Nenhum item adicionado a esta nota ainda.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

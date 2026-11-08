@@ -35,11 +35,20 @@ class NotaFiscal(models.Model):
     numero = models.CharField(max_length=20, unique=True)
     data_emissao = models.DateTimeField(auto_now_add=True)
     tipo = models.CharField(max_length=1, choices=TIPO_CHOICES)
+    
+    # Relacionamentos
     fornecedor = models.ForeignKey('Fornecedor', on_delete=models.PROTECT, null=True, blank=True)
+    cliente = models.ForeignKey('Cliente', on_delete=models.PROTECT, null=True, blank=True)
+    
     observacao = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.numero} - {self.get_tipo_display()}"
+
+    @property
+    def total(self):
+
+        return sum(item.preco_unitario * item.quantidade for item in self.itens.all())
 
 
 class ItemNota(models.Model):

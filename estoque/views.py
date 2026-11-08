@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from .models import Fornecedor, Produto, NotaFiscal, ItemNota, Cliente
-from .forms import FornecedorForm, ClienteForm, ProdutoForm, InventarioForm
+from .forms import FornecedorForm, ClienteForm, ProdutoForm, InventarioForm, NotaEntradaForm, ItemEntradaForm, NotaSaidaForm, ItemSaidaForm
 
 
 def login_view(request):
@@ -100,7 +100,17 @@ def lista_produtos(request):
 def lista_notas(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    notas = NotaFiscal.objects.all()
+    
+    # Pega o que foi digitado na barra de pesquisa (se estiver vazio, pega None)
+    busca = request.GET.get('q')
+    
+    if busca:
+        # Filtra pelo número da nota (icontains significa "contém", e ignora maiúsculas/minúsculas)
+        notas = NotaFiscal.objects.filter(numero__icontains=busca).order_by('-data_emissao')
+    else:
+        # Se não tiver busca, mostra todas
+        notas = NotaFiscal.objects.all().order_by('-data_emissao')
+        
     return render(request, 'estoque/notas.html', {'notas': notas})
 
 from django.shortcuts import get_object_or_404  
@@ -326,7 +336,7 @@ def produto_editar(request, id):
             return redirect('produtos')
     else:
         form = ProdutoForm(instance=produto)
-        # Se o fornecedor do produto estiver bloqueado, ainda mostra ele no menu (senão perdemos o vínculo)
+
         if produto.fornecedor:
             form.fields['fornecedor'].queryset = Fornecedor.objects.filter(
                 Q(ativo=True) | Q(id=produto.fornecedor.id)
@@ -381,3 +391,162 @@ def produto_inventario(request, id):
         'produto': produto,
         'titulo': f'Ajuste de Inventário — {produto.nome}'
     })
+
+def nota_entrada_nova(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        form = NotaEntradaForm(request.POST)
+        if form.is_valid():
+            nota = form.save(commit=False)
+            nota.tipo = 'E'  
+            
+            nota.save()
+            messages.success(request, f'Nota de Entrada nº {nota.numero} registrada! Agora adicione os produtos.')
+            return redirect('nota_entrada_detalhe', id=nota.id)
+    else:
+        form = NotaEntradaForm()
+    return render(request, 'estoque/nota_entrada_form.html', {'form': form, 'titulo': 'Nova Nota de Entrada'})
+
+
+def nota_entrada_detalhe(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    nota = get_object_or_404(NotaFiscal, id=id, tipo='E')
+    
+    if request.method == 'POST':
+        item_form = ItemEntradaForm(request.POST)
+        if item_form.is_valid():
+            item = item_form.save(commit=False)
+            item.nota = nota
+            item.save()
+
+            produto = item.produto
+            
+            valor_total_atual = float(produto.quantidade_estoque) * float(produto.preco_compra)
+            
+            valor_total_novo = float(item.quantidade) * float(item.preco_unitario)
+            
+            nova_qtd = produto.quantidade_estoque + item.quantidade
+            
+           
+            if nova_qtd > 0:
+                novo_preco = (valor_total_atual + valor_total_novo) / nova_qtd
+                produto.preco_compra = round(novo_preco, 2)
+            
+            produto.quantidade_estoque = nova_qtd
+            produto.save()
+            
+            messages.success(request, f'Produto "{produto.nome}" adicionado! Estoque atualizado para {nova_qtd} un.')
+            return redirect('nota_entrada_detalhe', id=nota.id)
+    else:
+        item_form = ItemEntradaForm()
+        
+    itens = nota.itens.all()
+    return render(request, 'estoque/nota_entrada_detalhe.html', {
+        'nota': nota,
+        'itens': itens,
+        'item_form': item_form
+    })
+
+def detalhe_nota(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    nota = get_object_or_404(NotaFiscal, id=id)
+    # Pega todos os itens que pertencem a essa nota
+    itens = nota.itens.all()
+    
+    total_geral = sum(item.quantidade * item.preco_unitario for item in itens)
+    
+    context = {
+        'nota': nota,
+        'itens': itens,
+        'total_geral': total_geral,
+    }
+    return render(request, 'estoque/nota_detalhe.html', context)
+
+def lista_notas_saida(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    q = request.GET.get('q', '').strip()
+    notas = NotaFiscal.objects.filter(tipo='S').order_by('-data_emissao')
+    
+    # Se o usuário digitou algo na busca, filtra pelo número da nota ou nome do cliente
+    if q:
+        notas = notas.filter(
+            Q(numero__icontains=q) | Q(cliente__nome__icontains=q)
+        )
+        
+    return render(request, 'estoque/notas_saida.html', {'notas': notas, 'q': q})
+
+def nota_saida_nova(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.method == 'POST':
+        form = NotaSaidaForm(request.POST)
+        if form.is_valid():
+            nota = form.save(commit=False)
+            nota.tipo = 'S'
+            
+            # Gera o número automático de 9 dígitos (ex: 000000001)
+            count = NotaFiscal.objects.filter(tipo='S').count() + 1
+            nota.numero = str(count).zfill(9)
+            
+            nota.save()
+            messages.success(request, f'Nota de Saída nº {nota.numero} iniciada! Agora adicione os produtos.')
+            return redirect('nota_saida_detalhe', id=nota.id)
+    else:
+        form = NotaSaidaForm()
+    return render(request, 'estoque/nota_saida_form.html', {'form': form, 'titulo': 'Nova Nota de Saída'})
+
+def nota_saida_detalhe(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
+    itens = nota.itens.all()
+    
+    # Agora a tela só mostra os dados. Não tem mais POST para adicionar item aqui.
+    return render(request, 'estoque/nota_saida_detalhe.html', {
+        'nota': nota,
+        'itens': itens
+    })
+
+def imprimir_nota(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+        
+    numero = request.GET.get('numero')
+    if not numero:
+        messages.error(request, 'Digite o número da nota.')
+        return redirect('notas_saida')
+        
+    try:
+        # Busca a nota (seja de entrada ou saída) pelo número exato
+        nota = NotaFiscal.objects.get(numero=numero)
+    except NotaFiscal.DoesNotExist:
+        messages.error(request, f'Nota número "{numero}" não encontrada.')
+        return redirect('notas_saida')
+        
+    return render(request, 'estoque/imprimir_nota.html', {'nota': nota})
+
+def nota_saida_excluir(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
+    
+    if request.method == 'POST':
+        # A MÁGICA DA BORRACHA: Devolve os produtos para o estoque antes de apagar
+        for item in nota.itens.all():
+            produto = item.produto
+            produto.quantidade_estoque += item.quantidade
+            produto.save()
+            
+        nota.delete()
+        messages.success(request, f'Nota de Saída {nota.numero} excluída. Os produtos voltaram para o estoque.')
+        return redirect('notas_saida')
+        
+    return render(request, 'estoque/confirmar_exclusao.html', {'objeto': nota, 'tipo': 'Nota de Saída'})
