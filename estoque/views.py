@@ -100,17 +100,11 @@ def lista_produtos(request):
 def lista_notas(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    
-    # Pega o que foi digitado na barra de pesquisa (se estiver vazio, pega None)
     busca = request.GET.get('q')
-    
     if busca:
-        # Filtra pelo número da nota (icontains significa "contém", e ignora maiúsculas/minúsculas)
         notas = NotaFiscal.objects.filter(numero__icontains=busca).order_by('-data_emissao')
     else:
-        # Se não tiver busca, mostra todas
-        notas = NotaFiscal.objects.all().order_by('-data_emissao')
-        
+        notas = NotaFiscal.objects.filter(tipo='E').order_by('-data_emissao')     
     return render(request, 'estoque/notas.html', {'notas': notas})
 
 from django.shortcuts import get_object_or_404  
@@ -154,9 +148,13 @@ def detalhe_cliente(request, id):
         return redirect('login')
 
     cliente = get_object_or_404(Cliente, id=id)
+    
+    # Busca todas as notas de saída vinculadas a este cliente
+    notas = NotaFiscal.objects.filter(cliente=cliente, tipo='S').order_by('-data_emissao')
 
     context = {
         'cliente': cliente,
+        'notas': notas, # <-- Aqui está a mágica
     }
     return render(request, 'estoque/cliente_detalhe.html', context)
 
@@ -455,7 +453,7 @@ def detalhe_nota(request, id):
         return redirect('login')
     
     nota = get_object_or_404(NotaFiscal, id=id)
-    # Pega todos os itens que pertencem a essa nota
+    
     itens = nota.itens.all()
     
     total_geral = sum(item.quantidade * item.preco_unitario for item in itens)
@@ -474,7 +472,6 @@ def lista_notas_saida(request):
     q = request.GET.get('q', '').strip()
     notas = NotaFiscal.objects.filter(tipo='S').order_by('-data_emissao')
     
-    # Se o usuário digitou algo na busca, filtra pelo número da nota ou nome do cliente
     if q:
         notas = notas.filter(
             Q(numero__icontains=q) | Q(cliente__nome__icontains=q)
@@ -509,7 +506,6 @@ def nota_saida_detalhe(request, id):
     nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
     itens = nota.itens.all()
     
-    # Apenas mostra os dados
     return render(request, 'estoque/nota_saida_detalhe.html', {
         'nota': nota,
         'itens': itens
@@ -525,7 +521,7 @@ def imprimir_nota(request):
         return redirect('notas_saida')
         
     try:
-        # Busca a nota (seja de entrada ou saída) pelo número exato
+        
         nota = NotaFiscal.objects.get(numero=numero)
     except NotaFiscal.DoesNotExist:
         messages.error(request, f'Nota número "{numero}" não encontrada.')
@@ -539,7 +535,7 @@ def nota_saida_excluir(request, id):
     nota = get_object_or_404(NotaFiscal, id=id, tipo='S')
     
     if request.method == 'POST':
-        # A MÁGICA DA BORRACHA: Devolve os produtos para o estoque antes de apagar
+        
         for item in nota.itens.all():
             produto = item.produto
             produto.quantidade_estoque += item.quantidade
@@ -583,3 +579,26 @@ def nota_saida_adicionar_item(request, id):
         'itens': itens,
         'item_form': item_form
     })
+
+def nota_entrada_excluir(request, id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    nota = get_object_or_404(NotaFiscal, id=id, tipo='E')
+    
+    if request.method == 'POST':
+        
+        for item in nota.itens.all():
+            if item.produto.quantidade_estoque < item.quantidade:
+                messages.error(request, f'Não é possível cancelar! O produto "{item.produto.nome}" já teve saídas e o estoque atual ({item.produto.quantidade_estoque} un.) é menor que a entrada ({item.quantidade} un.).')
+                return redirect('nota_entrada_detalhe', id=nota.id)
+        
+        for item in nota.itens.all():
+            produto = item.produto
+            produto.quantidade_estoque -= item.quantidade
+            produto.save()
+            
+        nota.delete()
+        messages.success(request, f'Nota de Entrada {nota.numero} cancelada. O estoque foi ajustado.')
+        return redirect('notas')
+        
+    return render(request, 'estoque/confirmar_exclusao.html', {'objeto': nota, 'tipo': 'Nota de Entrada'})

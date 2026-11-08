@@ -42,6 +42,7 @@
                 <thead>
                     <tr>
                         <th>Número</th>
+                        <th>Tipo</th>
                         <th>Data</th>
                         <th>Cliente</th>
                         <th>Itens</th>
@@ -52,6 +53,7 @@
                     {% for n in notas %}
                     <tr>
                         <td><a href="{% url 'nota_saida_detalhe' n.id %}" class="text-decoration-none fw-semibold" style="color: #2c3e50;">{{ n.numero }}</a></td>
+                        <td><span class="badge bg-warning text-dark">{{ n.get_tipo_display }}</span></td>
                         <td>{{ n.data_emissao|date:"d/m/Y H:i" }}</td>
                         <td>{{ n.cliente.nome }}</td>
                         <td>{{ n.itens.count }}</td>

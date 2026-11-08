@@ -29,6 +29,7 @@ urlpatterns = [
     path('em-breve/', views.em_breve, name='em_breve'),
     path('admin/', views.admin_redirect, name='admin_redirect'),
     path('notas/entrada/nova/', views.nota_entrada_nova, name='nota_entrada_nova'),
+    path('notas/entrada/<int:id>/excluir/', views.nota_entrada_excluir, name='nota_entrada_excluir'),
     path('notas/saida/', views.lista_notas_saida, name='notas_saida'),
     path('notas/saida/nova/', views.nota_saida_nova, name='nota_saida_nova'),
     path('notas/saida/<int:id>/', views.nota_saida_detalhe, name='nota_saida_detalhe'),
