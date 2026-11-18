@@ -5,58 +5,225 @@
 
 {% block conteudo %}
 
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Fornecedores</h5>
-                    <h2>{{ total_fornecedores }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Produtos</h5>
-                    <h2>{{ total_produtos }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-white bg-warning mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Notas Fiscais</h5>
-                    <h2>{{ total_notas }}</h2>
-                </div>
+<!-- AS 6 CAIXINHAS DO TOPO -->
+<div class="row mb-4">
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-building fs-3"></i>
+                <h3 class="mt-2 mb-0">{{ total_fornecedores }}</h3>
+                <small>Fornecedores</small>
             </div>
         </div>
     </div>
-
-
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card-custom">
-                <h6>🆕 Últimos Produtos</h6>
-                <ul class="list-group list-group-flush">
-                    {% for produto in ultimos_produtos %}
-                        <li class="list-group-item">{{ produto.nome }} - Estoque: {{ produto.quantidade_estoque }}</li>
-                    {% empty %}
-                        <li class="list-group-item">Nenhum produto cadastrado.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card-custom">
-                <h6>⚠️ Produtos com pouco estoque (&lt; 10)</h6>
-                <ul class="list-group list-group-flush">
-                    {% for produto in produtos_baixo_estoque %}
-                        <li class="list-group-item">{{ produto.nome }} - {{ produto.quantidade_estoque }} un.</li>
-                    {% empty %}
-                        <li class="list-group-item">Nenhum produto com estoque baixo.</li>
-                    {% endfor %}
-                </ul>
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-people fs-3"></i>
+                <h3 class="mt-2 mb-0">{{ total_clientes }}</h3>
+                <small>Clientes</small>
             </div>
         </div>
     </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-box fs-3"></i>
+                <h3 class="mt-2 mb-0">{{ total_produtos }}</h3>
+                <small>Produtos</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-box-arrow-in-down fs-3"></i>
+                <h3 class="mt-2 mb-0">{{ total_compras }}</h3>
+                <small>Compras</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-danger text-white h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-box-arrow-up fs-3"></i>
+                <h3 class="mt-2 mb-0">{{ total_vendas }}</h3>
+                <small>Vendas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2">
+        <div class="card bg-dark text-white h-100">
+            <div class="card-body text-center p-3">
+                <i class="bi bi-cash-stack fs-3"></i>
+                <h3 class="mt-2 mb-0">R$ {{ valor_estoque|floatformat:0 }}</h3>
+                <small>Em Estoque</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OS GRÁFICOS -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-4">
+        <div class="card-custom">
+            <h6><i class="bi bi-trophy"></i> Top 5 Clientes (Por Valor Gasto)</h6>
+            <hr>
+            {% if top_clientes %}
+                <canvas id="graficoClientes" height="200"></canvas>
+            {% else %}
+                <p class="text-muted text-center py-5">Nenhuma venda registrada ainda.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card-custom">
+            <h6><i class="bi bi-star"></i> Top 5 Produtos Mais Vendidos</h6>
+            <hr>
+            {% if top_produtos %}
+                <canvas id="graficoProdutos" height="200"></canvas>
+            {% else %}
+                <p class="text-muted text-center py-5">Nenhum produto vendido ainda.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-4">
+        <div class="card-custom">
+            <h6><i class="bi bi-building"></i> Top 5 Fornecedores (Por Qtd. de Produtos)</h6>
+            <hr>
+            {% if fornecedores_produtos %}
+                <canvas id="graficoFornecedores" height="200"></canvas>
+            {% else %}
+                <p class="text-muted text-center py-5">Nenhum fornecedor com produtos.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card-custom">
+            <h6 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Alerta: Produtos com Estoque Baixo (< 10)</h6>
+            <hr>
+            {% if produtos_baixo_estoque %}
+                <canvas id="graficoEstoque" height="200"></canvas>
+            {% else %}
+                <p class="text-success text-center py-5">Tudo certo! Nenhum produto com estoque baixo.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TABELA DE MOVIMENTAÇÕES -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card-custom">
+            <h6><i class="bi bi-clock-history"></i> Últimas Movimentações</h6>
+            <hr>
+            <div class="table-responsive">
+                <table class="table table-striped table-custom table-sm">
+                    <thead>
+                        <tr>
+                            <th>Número da Nota</th>
+                            <th>Tipo</th>
+                            <th>Data</th>
+                            <th>Envolvido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in ultimas_movimentacoes %}
+                        <tr>
+                            <td>{{ mov.numero }}</td>
+                            <td>
+                                {% if mov.tipo == 'E' %}
+                                    <span class="badge badge-entrada">Entrada</span>
+                                {% else %}
+                                    <span class="badge badge-saida">Saída</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ mov.data_emissao|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if mov.tipo == 'E' %}
+                                    {{ mov.fornecedor.nome|default:"-" }}
+                                {% else %}
+                                    {{ mov.cliente.nome|default:"-" }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center">Nenhuma movimentação recente.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- O MOTOR DOS GRÁFICOS (JAVASCRIPT) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ top_clientes|json_script:"top-clientes-data" }}
+{{ top_produtos|json_script:"top-produtos-data" }}
+{{ fornecedores_produtos|json_script:"top-fornecedores-data" }}
+{{ produtos_baixo_estoque|json_script:"baixo-estoque-data" }}
+
+<script>
+    const cores = ['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6'];
+
+    // Gráfico 1: Clientes
+    const dadosClientes = JSON.parse(document.getElementById('top-clientes-data').textContent);
+    if (dadosClientes.length > 0) {
+        new Chart(document.getElementById('graficoClientes'), {
+            type: 'bar',
+            data: {
+                labels: dadosClientes.map(item => item.nome),
+                datasets: [{ label: 'Total Gasto (R$)', data: dadosClientes.map(item => item.total_gasto), backgroundColor: cores, borderRadius: 5 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+
+    // Gráfico 2: Produtos
+    const dadosProdutos = JSON.parse(document.getElementById('top-produtos-data').textContent);
+    if (dadosProdutos.length > 0) {
+        new Chart(document.getElementById('graficoProdutos'), {
+            type: 'bar',
+            data: {
+                labels: dadosProdutos.map(item => item.nome),
+                datasets: [{ label: 'Unidades Vendidas', data: dadosProdutos.map(item => item.total_vendido), backgroundColor: '#2ecc71', borderRadius: 5 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+
+    // Gráfico 3: Fornecedores
+    const dadosFornecedores = JSON.parse(document.getElementById('top-fornecedores-data').textContent);
+    if (dadosFornecedores.length > 0) {
+        new Chart(document.getElementById('graficoFornecedores'), {
+            type: 'bar',
+            data: {
+                labels: dadosFornecedores.map(item => item.nome),
+                datasets: [{ label: 'Qtd. de Produtos', data: dadosFornecedores.map(item => item.num_produtos), backgroundColor: '#9b59b6', borderRadius: 5 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+
+    // Gráfico 4: Estoque Baixo
+    const dadosEstoque = JSON.parse(document.getElementById('baixo-estoque-data').textContent);
+    if (dadosEstoque.length > 0) {
+        new Chart(document.getElementById('graficoEstoque'), {
+            type: 'bar',
+            data: {
+                labels: dadosEstoque.map(item => item.nome),
+                datasets: [{ label: 'Qtd. em Estoque', data: dadosEstoque.map(item => item.quantidade_estoque), backgroundColor: '#e74c3c', borderRadius: 5 }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    }
+</script>
+
 {% endblock %}

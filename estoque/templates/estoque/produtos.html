@@ -5,15 +5,19 @@
 
 {% block conteudo %}
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <form method="get" class="d-flex" style="max-width: 420px; flex: 1;">
+        <form method="get" class="d-flex gap-2" style="max-width: 550px; flex: 1;">
             <div class="input-group">
                 <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por descrição, código ou fornecedor...">
-                <button type="submit" class="btn btn-primary-custom">Buscar</button>
-                {% if q %}
-                    <a href="{% url 'produtos' %}" class="btn btn-outline-secondary">Limpar</a>
-                {% endif %}
+                <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por descrição, código...">
             </div>
+            <select name="estoque" class="form-select" style="max-width: 180px;">
+                <option value="">Estoque: Todos</option>
+                <option value="baixo" {% if estoque == 'baixo' %}selected{% endif %}>Estoque Baixo</option>
+            </select>
+            <button type="submit" class="btn btn-primary-custom">Filtrar</button>
+            {% if q or estoque %}
+                <a href="{% url 'produtos' %}" class="btn btn-outline-secondary">Limpar</a>
+            {% endif %}
         </form>
         <a href="{% url 'produto_novo' %}" class="btn btn-primary-custom">
             <i class="bi bi-plus-circle"></i> Cadastrar Produto

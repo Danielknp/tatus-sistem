@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from .models import Fornecedor, Produto, NotaFiscal, ItemNota, Cliente
 from .forms import FornecedorForm, ClienteForm, ProdutoForm, InventarioForm, NotaEntradaForm, ItemEntradaForm, NotaSaidaForm, ItemSaidaForm
+from datetime import timedelta
+from django.utils import timezone
 
 
 def login_view(request):
@@ -61,53 +63,139 @@ def dashboard(request):
         return redirect('login')
     
     total_fornecedores = Fornecedor.objects.count()
+    total_clientes = Cliente.objects.count()
     total_produtos = Produto.objects.count()
-    total_notas = NotaFiscal.objects.count()
-    produtos_baixo_estoque = Produto.objects.filter(quantidade_estoque__lt=10)
-    ultimos_produtos = Produto.objects.order_by('-id')[:5]
+    
+    # Contagem de Notas
+    notas_entrada = NotaFiscal.objects.filter(tipo='E')
+    notas_saida = NotaFiscal.objects.filter(tipo='S')
+    total_compras = notas_entrada.count()
+    total_vendas = notas_saida.count()
 
+    # Cálculo de Valores (O Segredo: Multiplicar Quantidade * Preço do Item)
+    # Usamos o ExpressionWrapper para o banco de dados fazer a conta em vez do Python
+    valor_vendas = ItemNota.objects.filter(nota__tipo='S').aggregate(
+        total=Sum(ExpressionWrapper(F('quantidade') * F('preco_unitario'), output_field=DecimalField()))
+    )['total'] or 0
+
+    valor_compras = ItemNota.objects.filter(nota__tipo='E').aggregate(
+        total=Sum(ExpressionWrapper(F('quantidade') * F('preco_unitario'), output_field=DecimalField()))
+    )['total'] or 0
+
+    valor_estoque = Produto.objects.aggregate(
+        total=Sum(ExpressionWrapper(F('quantidade_estoque') * F('preco_compra'), output_field=DecimalField()))
+    )['total'] or 0
+
+    # Top 5 Clientes (Quem mais gastou)
+    top_clientes = list(Cliente.objects.annotate(
+        total_gasto=Sum(ExpressionWrapper(F('notafiscal__itens__quantidade') * F('notafiscal__itens__preco_unitario'), output_field=DecimalField()))
+    ).filter(total_gasto__gt=0).order_by('-total_gasto')[:5].values('nome', 'total_gasto'))
+
+    # Top 5 Produtos Mais Vendidos (Por quantidade)
+    top_produtos = list(Produto.objects.annotate(
+        total_vendido=Sum('itemnota__quantidade', filter=Q(itemnota__nota__tipo='S'))
+    ).filter(total_vendido__gt=0).order_by('-total_vendido')[:5].values('nome', 'total_vendido'))
+
+    # Top 5 Produtos com Estoque Baixo (Para o gráfico de alerta)
+    produtos_baixo_estoque = list(Produto.objects.filter(
+        quantidade_estoque__lt=10
+    ).order_by('quantidade_estoque')[:5].values('nome', 'quantidade_estoque'))
+
+    # Top 5 Fornecedores (Por quantidade de produtos cadastrados)
+    fornecedores_produtos = list(Fornecedor.objects.annotate(
+        num_produtos=Count('produto')
+    ).filter(num_produtos__gt=0).order_by('-num_produtos')[:5].values('nome', 'num_produtos'))
+
+    ultimas_movimentacoes = NotaFiscal.objects.all().order_by('-data_emissao')[:5]
+
+    # Juntando tudo para mandar para a tela
     context = {
         'total_fornecedores': total_fornecedores,
+        'total_clientes': total_clientes,
         'total_produtos': total_produtos,
-        'total_notas': total_notas,
+        'total_compras': total_compras,
+        'total_vendas': total_vendas,
+        'valor_vendas': valor_vendas,
+        'valor_compras': valor_compras,
+        'valor_estoque': valor_estoque,
+        
+        'top_clientes': top_clientes,
+        'top_produtos': top_produtos,
         'produtos_baixo_estoque': produtos_baixo_estoque,
-        'ultimos_produtos': ultimos_produtos,
+        'fornecedores_produtos': fornecedores_produtos,
+        'ultimas_movimentacoes': ultimas_movimentacoes,
     }
+    
     return render(request, 'estoque/dashboard.html', context)
 
 def lista_fornecedores(request):
     if not request.user.is_authenticated:
         return redirect('login')
     q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '') # Pega o filtro
+    
     fornecedores = Fornecedor.objects.all().order_by('-id')
+    
     if q:
         fornecedores = fornecedores.filter(
             Q(nome__icontains=q) | Q(cnpj__icontains=q) | Q(email__icontains=q)
         )
-    return render(request, 'estoque/fornecedores.html', {'fornecedores': fornecedores, 'q': q})
+    if status == 'ativos':
+        fornecedores = fornecedores.filter(ativo=True)
+    elif status == 'bloqueados':
+        fornecedores = fornecedores.filter(ativo=False)
+        
+    return render(request, 'estoque/fornecedores.html', {'fornecedores': fornecedores, 'q': q, 'status': status})
 
 def lista_produtos(request):
     if not request.user.is_authenticated:
         return redirect('login')
     q = request.GET.get('q', '').strip()
+    estoque = request.GET.get('estoque', '')
+    
     produtos = Produto.objects.all().order_by('-id')
+    
     if q:
         produtos = produtos.filter(
             Q(nome__icontains=q) | Q(codigo__icontains=q) | Q(fornecedor__nome__icontains=q)
         )
-    return render(request, 'estoque/produtos.html', {'produtos': produtos, 'q': q})
+    if estoque == 'baixo':
+        produtos = produtos.filter(quantidade_estoque__lt=10)
+        
+    return render(request, 'estoque/produtos.html', {'produtos': produtos, 'q': q, 'estoque': estoque})
 
 def lista_notas(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    busca = request.GET.get('q')
-    if busca:
-        notas = NotaFiscal.objects.filter(numero__icontains=busca).order_by('-data_emissao')
-    else:
-        notas = NotaFiscal.objects.filter(tipo='E').order_by('-data_emissao')     
-    return render(request, 'estoque/notas.html', {'notas': notas})
+    
+    q = request.GET.get('q', '').strip()
+    fornecedor_id = request.GET.get('fornecedor', '')
+    data_filtro = request.GET.get('data', '') # <-- NOVO FILTRO DE DATA
+    
+    notas = NotaFiscal.objects.filter(tipo='E').order_by('-data_emissao')
+    
+    if q:
+        notas = notas.filter(Q(numero__icontains=q))
+    if fornecedor_id:
+        notas = notas.filter(fornecedor_id=fornecedor_id)
+        
+    # LÓGICA DO FILTRO DE DATA
+    if data_filtro == 'hoje':
+        notas = notas.filter(data_emissao__date=timezone.now().date())
+    elif data_filtro == 'mes':
+        trinta_dias_atras = timezone.now() - timedelta(days=30)
+        notas = notas.filter(data_emissao__gte=trinta_dias_atras)
+        
+    fornecedores = Fornecedor.objects.all().order_by('nome')
+    
+    return render(request, 'estoque/notas.html', {
+        'notas': notas, 
+        'q': q, 
+        'fornecedor_id': fornecedor_id,
+        'data_filtro': data_filtro, # <-- Enviando para a tela
+        'fornecedores': fornecedores
+    })
 
-from django.shortcuts import get_object_or_404  
 def detalhe_fornecedor(request, id):
     if not request.user.is_authenticated:
         return redirect('login')
@@ -136,12 +224,20 @@ def lista_clientes(request):
     if not request.user.is_authenticated:
         return redirect('login')
     q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    
     clientes = Cliente.objects.all().order_by('-id')
+    
     if q:
         clientes = clientes.filter(
             Q(nome__icontains=q) | Q(cpf_cnpj__icontains=q) | Q(email__icontains=q)
         )
-    return render(request, 'estoque/clientes.html', {'clientes': clientes, 'q': q})
+    if status == 'ativos':
+        clientes = clientes.filter(ativo=True)
+    elif status == 'bloqueados':
+        clientes = clientes.filter(ativo=False)
+        
+    return render(request, 'estoque/clientes.html', {'clientes': clientes, 'q': q, 'status': status})
 
 def detalhe_cliente(request, id):
     if not request.user.is_authenticated:
@@ -185,7 +281,7 @@ def fornecedor_editar(request, id):
         form = FornecedorForm(instance=fornecedor)
     return render(request, 'estoque/fornecedor_form.html', {'form': form, 'titulo': 'Editar Fornecedor'})
 
-from django.db.models import ProtectedError, Q
+from django.db.models import ProtectedError, Q, Sum, Count, F, DecimalField, ExpressionWrapper
 
 def fornecedor_excluir(request, id):
     if not request.user.is_authenticated:
@@ -465,19 +561,56 @@ def detalhe_nota(request, id):
     }
     return render(request, 'estoque/nota_detalhe.html', context)
 
+from django.db.models.functions import Coalesce
+
 def lista_notas_saida(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    
+
     q = request.GET.get('q', '').strip()
-    notas = NotaFiscal.objects.filter(tipo='S').order_by('-data_emissao')
-    
-    if q:
-        notas = notas.filter(
-            Q(numero__icontains=q) | Q(cliente__nome__icontains=q)
+    data_filtro = request.GET.get('data', '')
+    cliente_id = request.GET.get('cliente', '')
+
+    notas = (
+        NotaFiscal.objects.filter(tipo='S')
+        .select_related('cliente')
+        .annotate(
+            qtd_itens=Count('itens'),
+            total_calc=Coalesce(
+                Sum(ExpressionWrapper(
+                    F('itens__quantidade') * F('itens__preco_unitario'),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                )),
+                0,
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
         )
-        
-    return render(request, 'estoque/notas_saida.html', {'notas': notas, 'q': q})
+        .order_by('-data_emissao')
+    )
+
+    if q:
+        # Subquery para não bagunçar a soma dos itens com um join extra
+        notas_com_produto = ItemNota.objects.filter(
+            produto__nome__icontains=q
+        ).values('nota_id')
+        notas = notas.filter(Q(numero__icontains=q) | Q(id__in=notas_com_produto))
+
+    hoje = timezone.localdate()
+    if data_filtro == 'hoje':
+        notas = notas.filter(data_emissao__date=hoje)
+    elif data_filtro == 'mes':
+        notas = notas.filter(data_emissao__date__gte=hoje - timedelta(days=30))
+
+    if cliente_id:
+        notas = notas.filter(cliente_id=cliente_id)
+
+    return render(request, 'estoque/notas_saida.html', {
+        'notas': notas,
+        'q': q,
+        'data_filtro': data_filtro,
+        'cliente_id': cliente_id,
+        'clientes': Cliente.objects.all().order_by('nome'),
+    })
 
 def nota_saida_nova(request):
     if not request.user.is_authenticated:
